@@ -3,7 +3,7 @@ import re
 from typing import Optional
 
 import telegram
-from SaitamaRobot import BAN_STICKER, TIGER_USERS, WHITELIST_USERS, dispatcher
+from SaitamaRobot import BAN_STICKER, TIGERS, WOLVES, dispatcher
 from SaitamaRobot.modules.disable import DisableAbleCommandHandler
 from SaitamaRobot.modules.helper_funcs.chat_status import (bot_admin,
                                                            can_restrict,
@@ -18,6 +18,7 @@ from SaitamaRobot.modules.helper_funcs.misc import split_message
 from SaitamaRobot.modules.helper_funcs.string_handling import split_quotes
 from SaitamaRobot.modules.log_channel import loggable
 from SaitamaRobot.modules.sql import warns_sql as sql
+from SaitamaRobot.modules.sql.approve_sql import is_approved
 from telegram import (CallbackQuery, Chat, InlineKeyboardButton,
                       InlineKeyboardMarkup, Message, ParseMode, Update, User)
 from telegram.error import BadRequest
@@ -40,7 +41,7 @@ def warn(user: User,
         # message.reply_text("Damn admins, They are too far to be One Punched!")
         return
 
-    if user.id in TIGER_USERS:
+    if user.id in TIGERS:
         if warner:
             message.reply_text("Tigers cant be warned.")
         else:
@@ -49,7 +50,7 @@ def warn(user: User,
             )
         return
 
-    if user.id in WHITELIST_USERS:
+    if user.id in WOLVES:
         if warner:
             message.reply_text("Wolf disasters are warn immune.")
         else:
@@ -343,6 +344,8 @@ def reply_filter(update: Update, context: CallbackContext) -> str:
         return
 
     if user.id == 777000:
+        return
+    if is_approved(chat.id, user.id):
         return
 
     chat_warn_filters = sql.get_chat_warn_triggers(chat.id)

@@ -7,6 +7,7 @@ from telegram.ext import CommandHandler, MessageHandler, Filters, run_async
 from telegram.utils.helpers import mention_html
 
 import SaitamaRobot.modules.sql.blacklist_sql as sql
+from SaitamaRobot.modules.sql.approve_sql import is_approved
 from SaitamaRobot import dispatcher, LOGGER
 from SaitamaRobot.modules.disable import DisableAbleCommandHandler
 from SaitamaRobot.modules.helper_funcs.chat_status import user_admin, user_not_admin
@@ -58,10 +59,11 @@ def blacklist(update, context):
     split_text = split_message(filter_list)
     for text in split_text:
         if filter_list == "Current blacklisted words in <b>{}</b>:\n".format(
-                chat_name):
+                html.escape(chat_name)):
             send_message(
                 update.effective_message,
-                "No blacklisted words in <b>{}</b>!".format(chat_name),
+                "No blacklisted words in <b>{}</b>!".format(
+                    html.escape(chat_name)),
                 parse_mode=ParseMode.HTML,
             )
             return
@@ -101,7 +103,7 @@ def add_blacklist(update, context):
             send_message(
                 update.effective_message,
                 "Added blacklist <code>{}</code> in chat: <b>{}</b>!".format(
-                    html.escape(to_blacklist[0]), chat_name),
+                    html.escape(to_blacklist[0]), html.escape(chat_name)),
                 parse_mode=ParseMode.HTML,
             )
 
@@ -109,7 +111,7 @@ def add_blacklist(update, context):
             send_message(
                 update.effective_message,
                 "Added blacklist trigger: <code>{}</code> in <b>{}</b>!".format(
-                    len(to_blacklist), chat_name),
+                    len(to_blacklist), html.escape(chat_name)),
                 parse_mode=ParseMode.HTML,
             )
 
@@ -157,7 +159,8 @@ def unblacklist(update, context):
                 send_message(
                     update.effective_message,
                     "Removed <code>{}</code> from blacklist in <b>{}</b>!"
-                    .format(html.escape(to_unblacklist[0]), chat_name),
+                    .format(
+                        html.escape(to_unblacklist[0]), html.escape(chat_name)),
                     parse_mode=ParseMode.HTML,
                 )
             else:
@@ -168,7 +171,7 @@ def unblacklist(update, context):
             send_message(
                 update.effective_message,
                 "Removed <code>{}</code> from blacklist in <b>{}</b>!".format(
-                    successful, chat_name),
+                    successful, html.escape(chat_name)),
                 parse_mode=ParseMode.HTML,
             )
 
@@ -292,7 +295,7 @@ Examples of time value: 4m = 4 minutes, 3h = 3 hours, 6d = 6 days, 5w = 5 weeks.
                 "<b>Admin:</b> {}\n"
                 "Changed the blacklist mode. will {}.".format(
                     html.escape(chat.title),
-                    mention_html(user.id, user.first_name),
+                    mention_html(user.id, html.escape(user.first_name)),
                     settypeblacklist,
                 ))
     else:
@@ -340,7 +343,8 @@ def del_blacklist(update, context):
     to_match = extract_text(message)
     if not to_match:
         return
-
+    if is_approved(chat.id, user.id):
+        return
     getmode, value = sql.get_blacklist_setting(chat.id)
 
     chat_filters = sql.get_chat_blacklist(chat.id)

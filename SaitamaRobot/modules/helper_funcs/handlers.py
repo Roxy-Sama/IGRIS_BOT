@@ -1,13 +1,52 @@
 import SaitamaRobot.modules.sql.blacklistusers_sql as sql
 from SaitamaRobot import ALLOW_EXCL
-from telegram import MessageEntity, Update
+from SaitamaRobot import (DEV_USERS, DRAGONS, DEMONS, TIGERS, WOLVES)
+
+from telegram import Update
 from telegram.ext import CommandHandler, MessageHandler, RegexHandler, Filters
-from time import sleep
+from pyrate_limiter import (BucketFullException, Duration, RequestRate, Limiter,
+                            MemoryListBucket)
 
 if ALLOW_EXCL:
     CMD_STARTERS = ('/', '!')
 else:
     CMD_STARTERS = ('/',)
+
+
+class AntiSpam:
+
+    def __init__(self):
+        self.whitelist = (DEV_USERS or []) + (DRAGONS or []) + (
+            WOLVES or []) + (DEMONS or []) + (
+                TIGERS or [])
+        #Values are HIGHLY experimental, its recommended you pay attention to our commits as we will be adjusting the values over time with what suits best.
+        Duration.CUSTOM = 15  # Custom duration, 15 seconds
+        self.sec_limit = RequestRate(6, Duration.CUSTOM)  # 6 / Per 15 Seconds
+        self.min_limit = RequestRate(20, Duration.MINUTE)  # 20 / Per minute
+        self.hour_limit = RequestRate(100, Duration.HOUR)  # 100 / Per hour
+        self.daily_limit = RequestRate(1000, Duration.DAY)  # 1000 / Per day
+        self.limiter = Limiter(
+            self.sec_limit,
+            self.min_limit,
+            self.hour_limit,
+            self.daily_limit,
+            bucket_class=MemoryListBucket)
+
+    def check_user(self, user):
+        """
+        Return True if user is to be ignored else False
+        """
+        if user in self.whitelist:
+            return False
+        try:
+            self.limiter.try_acquire(user)
+            return False
+        except BucketFullException:
+            return True
+
+
+SpamChecker = AntiSpam()
+MessageHandlerChecker = AntiSpam()
 
 
 class CustomCommandHandler(CommandHandler):
@@ -46,11 +85,13 @@ class CustomCommandHandler(CommandHandler):
                     args = message.text.split()[1:]
                     command = fst_word[1:].split("@")
                     command.append(message.bot.username)
-
+                    if user_id == 1087968824:
+                        user_id = update.effective_chat.id
                     if not (command[0].lower() in self.command and
                             command[1].lower() == message.bot.username.lower()):
                         return None
-
+                    if SpamChecker.check_user(user_id):
+                        return None
                     filter_result = self.filters(update)
                     if filter_result:
                         return args, filter_result
