@@ -1,8 +1,7 @@
 import random
 
 from SaitamaRobot import dispatcher
-from SaitamaRobot.modules.disable import (DisableAbleCommandHandler,
-                                          DisableAbleMessageHandler)
+from SaitamaRobot.modules.disable import (DisableAbleCommandHandler)
 from SaitamaRobot.modules.sql import afk_sql as sql
 from SaitamaRobot.modules.users import get_user_id
 from telegram import MessageEntity, Update
@@ -16,14 +15,6 @@ AFK_REPLY_GROUP = 8
 @run_async
 def afk(update: Update, context: CallbackContext):
     args = update.effective_message.text.split(None, 1)
-    user = update.effective_user
-
-    if not user:  # ignore channels
-        return
-
-    if user.id == 777000:
-        return
-
     notice = ""
     if len(args) >= 2:
         reason = args[1]
@@ -35,11 +26,8 @@ def afk(update: Update, context: CallbackContext):
 
     sql.set_afk(update.effective_user.id, reason)
     fname = update.effective_user.first_name
-    try:
-        update.effective_message.reply_text("{} is now away!{}".format(
-            fname, notice))
-    except BadRequest:
-        pass
+    update.effective_message.reply_text("{} is now away!{}".format(
+        fname, notice))
 
 
 @run_async
@@ -129,9 +117,8 @@ def check_afk(update, context, user_id, fst_name, userc_id):
         else:
             if int(userc_id) == int(user_id):
                 return
-            res = "{} is afk.\nReason: <code>{}</code>".format(
-                fst_name, user.reason)
-            update.effective_message.reply_text(res, parse_mode="html")
+            res = "{} is afk.\nReason: {}".format(fst_name, user.reason)
+            update.effective_message.reply_text(res)
 
 
 __help__ = """
@@ -141,8 +128,8 @@ When marked as AFK, any mentions will be replied to with a message to say you're
 """
 
 AFK_HANDLER = DisableAbleCommandHandler("afk", afk)
-AFK_REGEX_HANDLER = DisableAbleMessageHandler(
-    Filters.regex(r"^brb(.*)$"), afk, friendly="afk")
+AFK_REGEX_HANDLER = MessageHandler(
+    Filters.regex(r"(?i)brb"), afk, friendly="afk")
 NO_AFK_HANDLER = MessageHandler(Filters.all & Filters.group, no_longer_afk)
 AFK_REPLY_HANDLER = MessageHandler(Filters.all & Filters.group, reply_afk)
 

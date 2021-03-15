@@ -5,7 +5,7 @@ import textwrap
 import bs4
 import jikanpy
 import requests
-from SaitamaRobot import DEV_USERS, OWNER_ID, SUDO_USERS, dispatcher
+from SaitamaRobot import DEV_USERS, OWNER_ID, DRAGONS, dispatcher
 from SaitamaRobot.modules.disable import DisableAbleCommandHandler
 from telegram import (InlineKeyboardButton, InlineKeyboardMarkup, ParseMode,
                       Update)
@@ -49,6 +49,8 @@ airing_query = '''
     query ($id: Int,$search: String) { 
       Media (id: $id, type: ANIME,search: $search) { 
         id
+        siteUrl
+        bannerImage 
         episodes
         title {
           romaji
@@ -157,14 +159,13 @@ query ($id: Int,$search: String) {
 
 url = 'https://graphql.anilist.co'
 
-
 @run_async
 def airing(update: Update, context: CallbackContext):
     message = update.effective_message
     search_str = message.text.split(' ', 1)
     if len(search_str) == 1:
         update.effective_message.reply_text(
-            'Tell Anime Name :) ( /airing <anime name>)')
+            'Tell Anime Name: `/airing` <anime name>)')
         return
     variables = {'search': search_str[1]}
     response = requests.post(
@@ -172,7 +173,8 @@ def airing(update: Update, context: CallbackContext):
             'query': airing_query,
             'variables': variables
         }).json()['data']['Media']
-    msg = f"*Name*: *{response['title']['romaji']}*(`{response['title']['native']}`)\n*ID*: `{response['id']}`"
+    image = response.get('bannerImage', None)
+    msg = f"*Name*: *{response['title']['romaji']}*(`{response['title']['native']}`)\n*ID*: `{response['id']}`[⁠ ⁠]({image})"
     if response['nextAiringEpisode']:
         time = response['nextAiringEpisode']['timeUntilAiring'] * 1000
         time = t(time)
@@ -180,7 +182,6 @@ def airing(update: Update, context: CallbackContext):
     else:
         msg += f"\n*Episode*:{response['episodes']}\n*Status*: `N/A`"
     update.effective_message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
-
 
 @run_async
 def anime(update: Update, context: CallbackContext):
@@ -458,7 +459,7 @@ def button(update: Update, context: CallbackContext):
     query_type = data[0]
     original_user_id = int(data[1])
 
-    user_and_admin_list = [original_user_id, OWNER_ID] + SUDO_USERS + DEV_USERS
+    user_and_admin_list = [original_user_id, OWNER_ID] + DRAGONS + DEV_USERS
 
     bot.answer_callback_query(query.id)
     if query_type == "anime_close":
